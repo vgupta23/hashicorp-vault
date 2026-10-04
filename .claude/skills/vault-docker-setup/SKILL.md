@@ -179,3 +179,31 @@ rm -rf vault/data/* vault/file/*     # DESTRUCTIVE: wipes all Vault secrets and 
 - `init` saves the unseal key and root token to `vault/pki/vault-init.json` (chmod 600, gitignored, never mounted) so `unseal` and `test` work unattended. Dev convenience only; back it up, and never print or commit it. Delete it and use the interactive unseal for anything beyond local dev.
 - After a restart of Docker Desktop, run `./setup.sh unseal`.
 - `reset` wipes all Vault data and the saved keys, after a confirmation.
+
+## Secret scanning with gitleaks
+GitHub secret scanning isn't available on private repos on the free plan, so the repo uses gitleaks. Files: `.gitleaks.toml` (default rules + Vault tokens `hvs.`/`hvb.`/`hvr.`), `.githooks/pre-commit`, `.github/workflows/gitleaks.yml`.
+
+**Enable on a fresh clone** (hooks and Homebrew installs are not stored in git):
+```bash
+brew install gitleaks
+git config core.hooksPath .githooks
+```
+**Manual scans**
+```bash
+gitleaks git . --redact --config .gitleaks.toml    # full git history
+gitleaks dir . --redact --config .gitleaks.toml    # working tree incl. gitignored files
+```
+Expected: the history scan is clean. The working-tree scan reports `vault/pki/ca.key` and `vault/userconfig/tls/vault.key`; they are gitignored and never committed, so that is fine.
+
+**Verify the hook works** (use a realistic token: gitleaks ignores low-entropy fakes like `hvs.AAAA...`):
+```bash
+printf 'token = hvs.%s\n' "CAESIJx7Kq3mVnT9aBc2LdRfWz8YpHe4UtGsNoXi1QvMbJkE" > leaktest.txt
+git add -f leaktest.txt && git commit -m test      # must fail (exit 1)
+git reset -q leaktest.txt && rm leaktest.txt
+```
+Check `git log` afterwards to be sure no test commit landed.
+
+**Limits and response**
+- The hook only protects clones that ran the `core.hooksPath` command, and `git commit --no-verify` skips it. CI is the backstop but runs after the push.
+- If CI or a scan finds a real secret, treat it as compromised and rotate it (revoke the Vault token, `vault operator rekey` for unseal keys). Deleting the commit is not enough.
+- Check CI after a push: `gh run watch --exit-status "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')"`.
