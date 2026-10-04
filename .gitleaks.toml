@@ -1,0 +1,17 @@
+title = "vault-docker-setup gitleaks config"
+
+[extend]
+useDefault = true
+
+# Catch PEM private keys and Vault tokens anywhere, including files we don't expect
+[[rules]]
+id          = "vault-service-token"
+description = "HashiCorp Vault token (hvs./hvb./hvr. prefix)"
+regex       = '''\b(hv[sbr]\.[A-Za-z0-9_-]{20,})\b'''
+tags        = ["vault"]
+
+[allowlist]
+description = "Docs reference token/key names, not values"
+paths = [
+  '''^\.gitleaks\.toml$''',
+]

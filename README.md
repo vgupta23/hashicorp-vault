@@ -60,6 +60,17 @@ vault kv get -mount=secret demo
 - Use limited-policy tokens for real work; avoid the root token.
 - Fresh clones must regenerate certs (`./setup.sh certs`).
 
+## Secret scanning (gitleaks)
+GitHub's built-in secret scanning isn't available for private repos on the free plan, so this repo uses [gitleaks](https://github.com/gitleaks/gitleaks):
+- **Local pre-commit hook** (blocks the commit if staged changes contain a secret). Enable once per clone:
+  ```bash
+  brew install gitleaks
+  git config core.hooksPath .githooks
+  ```
+- **GitHub Action** (`.github/workflows/gitleaks.yml`) scans the full history on every push and PR.
+- Config in `.gitleaks.toml` (default rules plus Vault tokens `hvs.`/`hvb.`/`hvr.`).
+- Manual scans: `gitleaks git .` (history) and `gitleaks dir .` (working tree). The working-tree scan will report `vault/pki/ca.key` and `vault/userconfig/tls/vault.key`; they are gitignored and expected.
+
 ## Going to production
 This repo is a **dev** setup. Do not run it in prod as is (single node, file storage, one key share, `latest` image, key material on disk). Summary of what changes; details and rationale are in [docs/design.md](docs/design.md#12-production-deployment).
 
