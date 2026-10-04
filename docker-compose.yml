@@ -1,0 +1,33 @@
+services:
+  vault:
+    image: "hashicorp/vault:latest"
+    restart: unless-stopped
+    container_name: vault-new
+    ports:
+      - "8201:8201"   # cluster port
+      - "443:8200"    # API/UI over TLS
+    environment:
+      VAULT_ADDR: "https://127.0.0.1:8200"
+      VAULT_API_ADDR: "https://vault.test.lan"
+      VAULT_CACERT: /vault/userconfig/tls/ca.crt
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      # Relative bind mounts -> resolved against this workspace folder
+      # (Docker Desktop shares /Users by default)
+      - ./vault/audit:/vault/audit
+      - ./vault/config:/vault/config
+      - ./vault/data:/vault/data
+      - ./vault/file:/vault/file
+      - ./vault/logs:/vault/logs
+      - ./vault/userconfig:/vault/userconfig
+      - ./vault/plugins:/vault/plugins
+      # Trust the local CA inside the container (Alpine ca-certificates path)
+      - ./vault/userconfig/tls/ca.crt:/usr/local/share/ca-certificates/vault-local-ca.crt:ro
+    command: vault server -config=/vault/config/vault-config.hcl
+    networks:
+      - services_net
+
+networks:
+  services_net:
+    driver: bridge

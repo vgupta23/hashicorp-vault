@@ -1,0 +1,15 @@
+# CA private key, CSR, serial (never commit)
+vault/pki/
+
+# TLS keys and certs
+vault/userconfig/tls/
+*.key
+*.pem
+*.csr
+*.srl
+
+# Vault runtime state (secrets, unseal data, logs)
+vault/data/
+vault/file/
+vault/logs/
+vault/audit/
